@@ -3,89 +3,86 @@ import os
 import tempfile
 from dotenv import load_dotenv
 import cdsapi
+import certifi
+import ssl
+from tenacity import retry, stop_after_attempt, wait_exponential
 
-#Load environment variables (only needed if running locally with a .env file)
+# Configuración inicial de seguridad SSL
+os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
+ssl_context = ssl.create_default_context(cafile=certifi.where())
+
+# Carga de variables de entorno
 if not os.getenv("GITHUB_ACTIONS"):
     load_dotenv()
 
-# Antes de llamar a la API de Copernicus
-from cdsapi import Client
-client = Client()
-
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_REGION = "us-east-1"
+# Configuración de AWS
+AWS_CONFIG = {
+    "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
+    "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
+    "region_name": "us-east-1"
+}
 BUCKET_NAME = "geltonas.tech"
 
-# Ensure AWS credentials and region are correctly set
-if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY or not AWS_REGION:
-    raise ValueError("AWS credentials or region are not set properly.")
+# Verificación de credenciales
+if not all(AWS_CONFIG.values()):
+    raise ValueError("Faltan credenciales de AWS")
 
-client = cdsapi.Client()
+# Configuración del cliente CDS con reintentos y seguridad
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+def get_cds_client():
+    return cdsapi.Client(
+        url='https://cds.climate.copernicus.eu/api/v2',  # Endpoint oficial
+        verify=ssl_context
+    )
 
-# Define years to process
-years = [
-    '2002', '2003', '2004', '2005', '2006', '2007', '2008', '2009', 
-    '2010', '2011', '2012', '2013', '2014', '2015', '2016', '2017', 
-    '2018', '2019', '2020', '2021', '2022'
-]
-
-# Define the variables to retrieve
-variables = {
-    'mid_tropospheric_columns_of_atmospheric_carbon_dioxide': 'MidTropospheric_CO2',
-    'column_average_dry_air_mole_fraction_of_atmospheric_carbon_dioxide': 'XCO2'
+# Parámetros de descarga
+YEARS = [str(y) for y in range(2002, 2023)]
+SENSORS = {
+    'MidTropospheric_CO2': ['airs_nlis', 'iasi_metop_a_nlis', 'iasi_metop_b_nlis', 'iasi_metop_c_nlis'],
+    'XCO2': [
+        'sciamachy_wfmd', 'sciamachy_besd', 'tanso_fts_ocfp', 
+        'tanso_fts_srmp', 'tanso2_fts_srmp', 'merged_emma', 
+        'merged_obs4mips'
+    ]
 }
 
-sensor_and_algorithm_list = ['airs_nlis', 'iasi_metop_a_nlis', 
-                'iasi_metop_b_nlis', 'iasi_metop_c_nlis', 
-                'sciamachy_wfmd', 'sciamachy_besd', 
-                'tanso_fts_ocfp', 'tanso_fts_srmp', 
-                'tanso2_fts_srmp','merged_emma', 
-                'merged_obs4mips'
-            ]
-# Process each variable and year in batches
-for var, var_name in variables.items():
-        request = {
-            'processing_level': ['level_2', 'level_3'],
-            'variable': [var],
-            'sensor_and_algorithm': sensor_and_algorithm_list,
-            'year': [years],
-            'version': ['latest'],
-            'data_format': 'zip'
-        }
+def process_data():
+    client = get_cds_client()
+    s3 = boto3.client('s3', **AWS_CONFIG)
 
-        # Temporary File method
-        try:
-            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                temp_file_path = temp_file.name
-                print(f"Retrieving data for {var_name} in {years}...")
+    for variable, sensors in SENSORS.items():
+        for year in YEARS:
+            for sensor in sensors:
+                try:
+                    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                        print(f"Descargando {variable} - {sensor} - {year}")
+                        
+                        # Construcción de la solicitud
+                        request = {
+                            'variable': variable,
+                            'processing_level': 'level_3' if 'merged' in sensor else 'level_2',
+                            'sensor_and_algorithm': sensor,
+                            'year': year,
+                            'month': 'all',
+                            'version': 'latest',
+                            'format': 'zip'
+                        }
 
-                # Retrieve data and save it to the temporary file
-                response = client.retrieve("satellite-carbon-dioxide", request)
-                response.download(temp_file_path)
-                
-                # Check if file is empty
-                if os.path.getsize(temp_file_path) > 0:
-                    # Upload the temporary file to S3
-                    s3_client = boto3.client(
-                        's3',
-                        aws_access_key_id=AWS_ACCESS_KEY_ID,
-                        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-                        region_name=AWS_REGION
-                    )
+                        # Descarga y subida
+                        client.retrieve('satellite-carbon-dioxide', request, tmp_file.name)
+                        
+                        if os.path.getsize(tmp_file.name) > 0:
+                            s3_key = f"climate/{variable}/{sensor}/{year}.zip"
+                            s3.upload_file(tmp_file.name, BUCKET_NAME, s3_key)
+                            print(f"✅ Subido: {s3_key}")
+                        else:
+                            print(f"⚠️ Archivo vacío: {variable}-{sensor}-{year}")
 
-                    s3_key = f"{year}/{var_name}.zip"
-                    s3_client.upload_file(temp_file_path, BUCKET_NAME, s3_key)
-                    print(f"File uploaded to S3 bucket {BUCKET_NAME} with key {s3_key}")
-                else:
-                    print(f"No data retrieved for {var_name} in {year}. No folder created.")
+                except Exception as e:
+                    print(f"❌ Error en {variable}-{sensor}-{year}: {str(e)}")
+                finally:
+                    if os.path.exists(tmp_file.name):
+                        os.remove(tmp_file.name)
 
-        except Exception as e:
-            print(f"Error processing {var_name} for {years}: {e}")
-
-        finally:
-            # Clean up the temporary file
-            try:
-                os.remove(temp_file_path)
-            except:
-                pass
+if __name__ == "__main__":
+    process_data()
