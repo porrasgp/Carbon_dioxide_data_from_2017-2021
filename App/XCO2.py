@@ -1,125 +1,80 @@
-import boto3
-import os
-import tempfile
-import certifi
-import ssl
-from tenacity import retry, stop_after_attempt, wait_exponential
-from dotenv import load_dotenv
 import cdsapi
+from tenacity import retry, stop_after_attempt, wait_exponential
 
-# Configuración SSL
-os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
-ssl_context = ssl.create_default_context(cafile=certifi.where())
-
-# Carga de variables de entorno
-if not os.getenv("GITHUB_ACTIONS"):
-    load_dotenv()
-
-# Configuración AWS
-AWS_CONFIG = {
-    "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
-    "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
-    "region_name": "us-east-1"
+# Configuración común para todos los requests
+COMMON_CONFIG = {
+    "dataset": "satellite-carbon-dioxide",
+    "processing_level": "level_2",  # String en lugar de lista
+    "month": ["01","02","03","04","05","06","07","08","09","10","11","12"],
+    "format": "zip"  # Parámetro requerido
 }
-BUCKET_NAME = "geltonas.tech"
 
-# Verificación de credenciales
-if not all(AWS_CONFIG.values()):
-    raise ValueError("Error en credenciales AWS")
-
-# Configuración de datasets (Basado en la imagen)
-DATASET_CONFIG = {
-    "XCO2": {
-        "products": {
-            "LVL2": [
-                {"name": "MERGED_EMMA", "api_name": "merged_emma", "years": range(2017, 2022)},
-                {"name": "TANSO-FTS_OCFP", "api_name": "tanso_fts_ocfp", "years": range(2017, 2022)},
-                {"name": "TANSO-FTS_SRFP", "api_name": "tanso_fts_srmp", "years": range(2017, 2022)},
-                {"name": "TANSO2-FTS_SRFP", "api_name": "tanso2_fts_srmp", "years": range(2019, 2022)}
-            ],
-            "LVL3": [
-                {"name": "MERGED_OBS4MIPS", "api_name": "merged_obs4mips", "years": range(2017, 2023)}
-            ]
-        }
+# Configuración específica para cada sensor
+SENSOR_CONFIG = {
+    # Mid-tropospheric CO2
+    "iasi_metop_a_nlis": {
+        "variable": "mid_tropospheric_columns_of_atmospheric_carbon_dioxide",
+        "years": ["2017","2018","2019","2020","2021"],
+        "version": "10.1"  # Versión con punto
     },
-    "MidTropospheric_CO2": {
-        "sensors": [
-            {"name": "IASI_Metop-A_NLIS", "api_name": "iasi_metop_a_nlis", "years": range(2017, 2022)},
-            {"name": "IASI_Metop-B_NLIS", "api_name": "iasi_metop_b_nlis", "years": range(2017, 2022)},
-            {"name": "IASI_Metop-C_NLIS", "api_name": "iasi_metop_c_nlis", "years": range(2019, 2022)}
-        ]
+    "iasi_metop_b_nlis": {
+        "variable": "mid_tropospheric_columns_of_atmospheric_carbon_dioxide",
+        "years": ["2017","2018","2019","2020","2021"],
+        "version": "10.1"
+    },
+    "iasi_metop_c_nlis": {
+        "variable": "mid_tropospheric_columns_of_atmospheric_carbon_dioxide",
+        "years": ["2019","2020","2021"],
+        "version": "10.1"
+    },
+    
+    # XCO2
+    "tanso_fts_ocfp": {
+        "variable": "column_average_dry_air_mole_fraction_of_atmospheric_carbon_dioxide",
+        "years": ["2017","2018","2019","2020","2021"],
+        "version": "7.3"  # Versión corregida
+    },
+    "tanso_fts_srfp": {
+        "variable": "column_average_dry_air_mole_fraction_of_atmospheric_carbon_dioxide",
+        "years": ["2017","2018","2019","2020","2021"],
+        "version": "2.3.8"  # Versión con puntos
+    },
+    "tanso2_fts_srfp": {
+        "variable": "column_average_dry_air_mole_fraction_of_atmospheric_carbon_dioxide",
+        "years": ["2019","2020","2021"],
+        "version": "2.1.0"
+    },
+    "merged_emma": {
+        "variable": "column_average_dry_air_mole_fraction_of_atmospheric_carbon_dioxide",
+        "years": ["2017","2018","2019","2020","2021"],
+        "version": "4.5"
     }
 }
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-def get_cds_client():
-    return cdsapi.Client(
-        url='https://cds.climate.copernicus.eu/api',
-        verify=ssl_context
-    )
+def get_client():
+    return cdsapi.Client()
 
-def process_dataset():
-    client = get_cds_client()
-    s3 = boto3.client('s3', **AWS_CONFIG)
+def process_request(sensor, config):
+    client = get_client()
+    try:
+        request = {
+            **COMMON_CONFIG,
+            "variable": config["variable"],
+            "sensor_and_algorithm": sensor,
+            "year": config["years"],
+            "version": config["version"]
+        }
+        
+        print(f"⬇️ Descargando {sensor}...")
+        result = client.retrieve(COMMON_CONFIG["dataset"], request)
+        result.download(f"{sensor}_{config['version']}.zip")
+        print(f"✅ Descarga completada: {sensor}")
+        
+    except Exception as e:
+        print(f"❌ Error en {sensor}: {str(e)}")
+        raise
 
-    # Procesar XCO2
-    for product_type, products in DATASET_CONFIG["XCO2"]["products"].items():
-        for product in products:
-            for year in product["years"]:
-                try:
-                    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-                        request = {
-                            'variable': 'column_average_dry_air_mole_fraction_of_atmospheric_carbon_dioxide',
-                            'sensor_and_algorithm': product["api_name"],
-                            'year': str(year),
-                            'month': 'all',
-                            'version': 'latest',
-                            'format': 'zip'
-                        }
-
-                        client.retrieve('satellite-carbon-dioxide', request, tmp_file.name)
-                        
-                        if os.path.getsize(tmp_file.name) > 0:
-                            s3_key = f"climate/XCO2/{product_type}/{product['name']}/{year}.zip"
-                            s3.upload_file(tmp_file.name, BUCKET_NAME, s3_key)
-                            print(f"✅ {product['name']} {year} subido")
-                        else:
-                            print(f"⚠️ Archivo vacío: {product['name']} {year}")
-
-                except Exception as e:
-                    print(f"❌ Error en {product['name']} {year}: {str(e)}")
-                finally:
-                    if os.path.exists(tmp_file.name):
-                        os.remove(tmp_file.name)
-
-    # Procesar MidTropospheric CO2
-    for sensor in DATASET_CONFIG["MidTropospheric_CO2"]["sensors"]:
-        for year in sensor["years"]:
-            try:
-                with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-                    request = {
-                        'variable': 'mid_tropospheric_columns_of_atmospheric_carbon_dioxide',
-                        'sensor_and_algorithm': sensor["api_name"],
-                        'year': str(year),
-                        'month': 'all',
-                        'version': 'latest',
-                        'format': 'zip'
-                    }
-
-                    client.retrieve('satellite-carbon-dioxide', request, tmp_file.name)
-                    
-                    if os.path.getsize(tmp_file.name) > 0:
-                        s3_key = f"climate/MidTropospheric_CO2/{sensor['name']}/{year}.zip"
-                        s3.upload_file(tmp_file.name, BUCKET_NAME, s3_key)
-                        print(f"✅ {sensor['name']} {year} subido")
-                    else:
-                        print(f"⚠️ Archivo vacío: {sensor['name']} {year}")
-
-            except Exception as e:
-                print(f"❌ Error en {sensor['name']} {year}: {str(e)}")
-            finally:
-                if os.path.exists(tmp_file.name):
-                    os.remove(tmp_file.name)
-
-if __name__ == "__main__":
-    process_dataset()
+# Ejecutar todas las descargas
+for sensor, config in SENSOR_CONFIG.items():
+    process_request(sensor, config)
