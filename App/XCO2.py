@@ -7,13 +7,6 @@ import cdsapi
 #Load environment variables (only needed if running locally with a .env file)
 if not os.getenv("GITHUB_ACTIONS"):
     load_dotenv()
-import certifi
-import ssl
-import os
-
-# Sobrescribe la variable de entorno de certificados
-os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
-os.environ["SSL_CERT_FILE"] = certifi.where()
 
 # Antes de llamar a la API de Copernicus
 from cdsapi import Client
