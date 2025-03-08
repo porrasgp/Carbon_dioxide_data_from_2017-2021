@@ -77,7 +77,7 @@ for var, var_name in variables.items():
                     print(f"No data retrieved for {var_name} in {year}. No folder created.")
 
         except Exception as e:
-            print(f"Error processing {var_name} for {year}: {e}")
+            print(f"Error processing {var_name} for {years}: {e}")
 
         finally:
             # Clean up the temporary file
