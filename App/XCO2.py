@@ -32,12 +32,13 @@ DATASET_CONFIG = {
     "XCO2": {
         "products": {
             "LVL2": [
+                {"name": "MERGED_EMMA", "api_name": "merged_emma", "years": range(2017, 2022)},
                 {"name": "TANSO-FTS_OCFP", "api_name": "tanso_fts_ocfp", "years": range(2017, 2022)},
+                {"name": "TANSO-FTS_SRFP", "api_name": "tanso_fts_srmp", "years": range(2017, 2022)},
                 {"name": "TANSO2-FTS_SRFP", "api_name": "tanso2_fts_srmp", "years": range(2019, 2022)}
             ],
-            "MERGED": [
-                {"name": "MERGED_EMMA", "api_name": "merged_emma", "years": range(2017, 2022)},
-                {"name": "MERGED_OBS4MIPS", "api_name": "merged_obs4mips", "years": range(2003, 2023)}
+            "LVL3": [
+                {"name": "MERGED_OBS4MIPS", "api_name": "merged_obs4mips", "years": range(2017, 2023)}
             ]
         }
     },
