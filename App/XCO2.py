@@ -54,7 +54,7 @@ for var, var_name in variables.items():
         try:
             with tempfile.NamedTemporaryFile(delete=False) as temp_file:
                 temp_file_path = temp_file.name
-                print(f"Retrieving data for {var_name} in {year}...")
+                print(f"Retrieving data for {var_name} in {years}...")
 
                 # Retrieve data and save it to the temporary file
                 response = client.retrieve("satellite-carbon-dioxide", request)
