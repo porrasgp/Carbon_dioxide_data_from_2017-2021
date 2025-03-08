@@ -54,7 +54,7 @@ DATASET_CONFIG = {
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 def get_cds_client():
     return cdsapi.Client(
-        url='https://cds.climate.copernicus.eu/api/v2',
+        url='https://cds.climate.copernicus.eu/api',
         verify=ssl_context
     )
 
