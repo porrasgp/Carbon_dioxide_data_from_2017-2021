@@ -24,16 +24,7 @@ jobs:
     - name: Copy .cdsapirc to home directory
       run: cp App/.cdsapirc ~/.cdsapirc
 
-    - name: Main.py
-      working-directory: App
-      run: python main.py
-      timeout-minutes: 120
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB }}
-
-    - name: Xco2.py
+    - name: XCO2.py
       working-directory: App
       run: python XCO2.py 
       timeout-minutes: 120
