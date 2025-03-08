@@ -24,95 +24,73 @@ AWS_CONFIG = {
 }
 BUCKET_NAME = "geltonas.tech"
 
-# Configuración CDS
+# Configuración CDS para MidTropospheric_CO2
 DATASET = "satellite-carbon-dioxide"
-VARIABLES = {
-    "MidTropospheric_CO2": {
-        "sensors": ["iasi_metop_a_nlis", "iasi_metop_b_nlis", "iasi_metop_c_nlis"],
-        "params": {
-            "processing_level": "level_2",
-            "variable": "mid_tropospheric_columns_of_atmospheric_carbon_dioxide",
-            "version": "10.1",
-            "month": ["01","02","03","04","05","06","07","08","09","10","11","12"]
-        },
-        "years": {
-            "iasi_metop_a_nlis": range(2017, 2022),
-            "iasi_metop_b_nlis": range(2017, 2022),
-            "iasi_metop_c_nlis": range(2019, 2022)
-        }
-    },
-    "XCO2": {
-        "sensors": ["tanso_fts_ocfp", "tanso_fts_srfp", "tanso2_fts_srfp", "merged_emma"],
-        "params": {
-            "processing_level": "level_2",
-            "variable": "column_average_dry_air_mole_fraction_of_atmospheric_carbon_dioxide",
-            "version": "7.3",
-            "month": ["01","02","03","04","05","06","07","08","09","10","11","12"]
-        },
-        "years": {
-            "tanso_fts_ocfp": range(2017, 2022),
-            "tanso_fts_srfp": range(2017, 2022),
-            "tanso2_fts_srfp": range(2019, 2022),
-            "merged_emma": range(2017, 2022)
-        }
-    }
+VAR_NAME = "MidTropospheric_CO2"
+SENSOR = "iasi_metop_a_nlis"
+YEAR = "2021"  # Año de prueba
+
+# Parámetros asociados a MidTropospheric_CO2
+PARAMS = {
+    "processing_level": "level_2",
+    "variable": "mid_tropospheric_columns_of_atmospheric_carbon_dioxide",
+    "version": "10.1",
+    "month": ["01","02","03","04","05","06","07","08","09","10","11","12"]
 }
 
 client = cdsapi.Client()
 
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=60))
 def wait_for_job_completion(request):
-    """Maneja reintentos inteligentes con backoff exponencial"""
+    """Maneja reintentos inteligentes con backoff exponencial."""
     try:
         return client.retrieve(DATASET, request)
     except Exception as e:
         if "still running" in str(e).lower():
-            print(f"🔄 Job en progreso. Reintentando en 60s...")
+            print("🔄 Job en progreso. Reintentando en 60s...")
             time.sleep(60)
             raise
         raise
 
 def upload_to_s3(temp_file_path, bucket, s3_key):
-    """Sube archivo a S3 con verificación de tamaño"""
+    """Sube archivo a S3 con verificación de tamaño."""
     s3 = boto3.client('s3', **AWS_CONFIG)
-    
-    if os.path.getsize(temp_file_path) > 1024:  # 1KB mínimo
+    if os.path.getsize(temp_file_path) > 1024:  # Verifica que el archivo tenga al menos 1KB
         s3.upload_file(temp_file_path, bucket, s3_key)
         print(f"✅ Subido a s3://{bucket}/{s3_key}")
     else:
         print(f"⚠️ Archivo vacío o corrupto: {temp_file_path}")
 
 def process_data():
-    for var_name, var_config in VARIABLES.items():
-        for sensor in var_config["sensors"]:
-            for year in var_config["years"][sensor]:
-                request = {
-                    **var_config["params"],
-                    "sensor_and_algorithm": sensor,
-                    "year": str(year),
-                    "format": "zip"
-                }
-                
-                try:
-                    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-                        print(f"🚀 Iniciando {sensor} {year}...")
-                        
-                        # Paso 1: Iniciar proceso
-                        result = wait_for_job_completion(request)
-                        
-                        # Paso 2: Descargar datos
-                        result.download(tmp_file.name)
-                        print(f"📥 Descarga completada: {tmp_file.name}")
-                        
-                        # Paso 3: Subir a S3
-                        s3_key = f"climate-data/{var_name}/{sensor}/{year}.zip"
-                        upload_to_s3(tmp_file.name, BUCKET_NAME, s3_key)
-                        
-                except Exception as e:
-                    print(f"❌ Error crítico en {sensor} {year}: {str(e)}")
-                finally:
-                    if os.path.exists(tmp_file.name):
-                        os.remove(tmp_file.name)
+    # Construir la solicitud para el sensor y año de prueba
+    request = {
+        **PARAMS,
+        "sensor_and_algorithm": SENSOR,
+        "year": YEAR,
+        "format": "zip"
+    }
+    
+    try:
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            print(f"🚀 Iniciando descarga para {SENSOR} en {YEAR}...")
+            
+            # Paso 1: Iniciar proceso con CDS
+            result = wait_for_job_completion(request)
+            
+            # Paso 2: Descargar datos al archivo temporal
+            result.download(tmp_file.name)
+            print(f"📥 Descarga completada: {tmp_file.name}")
+            
+            # Paso 3: Subir el archivo a S3
+            s3_key = f"climate-data/{VAR_NAME}/{SENSOR}/{YEAR}.zip"
+            upload_to_s3(tmp_file.name, BUCKET_NAME, s3_key)
+            
+    except Exception as e:
+        print(f"❌ Error crítico en {SENSOR} {YEAR}: {str(e)}")
+    finally:
+        if os.path.exists(tmp_file.name):
+            os.remove(tmp_file.name)
+            print(f"🗑️ Archivo temporal eliminado: {tmp_file.name}")
 
 if __name__ == "__main__":
     process_data()
