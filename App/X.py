@@ -30,17 +30,23 @@ if not all(AWS_CONFIG.values()):
 # Configuración CDS y request template
 DATASET = "satellite-carbon-dioxide"
 request_template = {
-    "processing_level": "level_2",
-    "variable": "mid_tropospheric_columns_of_atmospheric_carbon_dioxide",
-    "sensor_and_algorithm": "iasi_metop_a_nlis",
-    # Lista de años de 2017 a 2021
-    "year": ["2017", "2018", "2019", "2020", "2021"],
-    "month": ["01"],
-    "day": ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10",
-            "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
-            "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31"],
-    "version": "10_1",
-    "format": "zip"
+         "processing_level": ["level_2"],
+         "variable": "co2" ,
+         "processing_level": "level_2",
+         "variable": "mid_tropospheric_columns_of_atmospheric_carbon_dioxide",
+         "sensor_and_algorithm": "iasi_metop_a_nlis",
+         "year": [years],
+         "year": [year],
+         "month": ["01"],
+         "day": ["01", "02", "03","04", "05", "06","07", "08", "09","10", "11", "12",
+                 "13", "14", "15","16", "17", "18","19", "20", "21","22", "23", "24",
+                 "25", "26", "27", "28", "29", "30","31"],
+         "version": ["10_1"],
+         "day": ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10",
+                 "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
+                 "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31"],
+         "version": "10_1",
+         "format": "zip"
 }
 
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=30, max=120))
