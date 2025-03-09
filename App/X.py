@@ -31,9 +31,9 @@ if not all(AWS_CONFIG.values()):
 DATASET = "satellite-carbon-dioxide"
 request_template = {
         "processing_level": "level_2",
-        "variable": "mid_tropospheric_columns_of_atmospheric_carbon_dioxide",
+        "variable": "co2",
         "sensor_and_algorithm": "iasi_metop_a_nlis",
-        "year": ["2017"],
+        "year":  ["2017","2018","2019","2020","2021"],
         "month": ["01"],
         "day": ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10",
                 "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
