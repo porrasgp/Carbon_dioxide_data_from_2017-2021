@@ -76,30 +76,35 @@ def process_year(year):
         "format": "zip"
     }
 
-    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+  with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
         try:
-            print(f"🚀 Iniciando descarga para {year}...")
+            print(f"\n📅 Procesando año {year}...")
             
-            # Paso 1: Iniciar proceso de descarga
+            # Paso 1: Iniciar descarga
             result = download_data(client, request)
             
-            # Paso 2: Descargar a archivo temporal
+            # Paso 2: Descargar datos
             result.download(tmp_file.name)
-            print(f"📥 Descarga de {year} completada")
+            print(f"✅ Datos de {year} descargados")
             
-            # Paso 3: Subir a S3
-            s3_key = f"climate-data/iasi_metop_a/{year}.zip"
+            # Paso 3: Subir a S3 con estructura de carpetas
+            s3_key = f"climate-data/iasi_metop_a/{year}/datos_completos.zip"
             upload_to_s3(tmp_file.name, s3_key)
+            print(f"📂 Carpeta creada en S3: s3://{BUCKET_NAME}/{s3_key}")
             
         except Exception as e:
-            print(f"❌ Error procesando {year}: {str(e)}")
+            print(f"❌ Error en {year}: {str(e)}")
             raise
         finally:
             if os.path.exists(tmp_file.name):
                 os.remove(tmp_file.name)
 
 if __name__ == "__main__":
-    print("⚡ Iniciando proceso completo de descarga y subida")
+    print("⚡ Iniciando proceso de organización por años")
     for year in SENSOR_CONFIG["iasi_metop_a_nlis"]["years"]:
         process_year(year)
-    print("🎉 Proceso completado exitosamente!")
+    print("\n🎉 Estructura en S3 creada exitosamente!")
+    print("   s3://geltonas.tech/climate-data/iasi_metop_a/")
+    print("   ├── 2017/datos_completos.zip")
+    print("   ├── 2018/datos_completos.zip")
+    print("   └── ...")
