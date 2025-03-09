@@ -92,8 +92,8 @@ def process_year(year):
 
 if __name__ == "__main__":
     print("⚡ Iniciando proceso de organización por años")
-    for year in SENSOR_CONFIG["iasi_metop_a_nlis"]["years"]:
-        process_year(year)
+    for year in request_template["year"]:
+        process_year(year, request_template)
     print("\n🎉 Estructura en S3 creada exitosamente!")
     print("   s3://geltonas.tech/climate-data/iasi_metop_a/")
     print("   ├── 2017/datos_completos.zip")
