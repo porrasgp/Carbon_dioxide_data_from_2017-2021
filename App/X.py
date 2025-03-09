@@ -32,7 +32,6 @@ DATASET = "satellite-carbon-dioxide"
 SENSOR_CONFIG = {
     "iasi_metop_a_nlis": {
         "variable": "mid_tropospheric_columns_of_atmospheric_carbon_dioxide",
-        "years": ["2017", "2018", "2019", "2020", "2021"],
         "version": "10_1"
     }
 }
@@ -67,8 +66,8 @@ def process_year(year):
         "processing_level": ["level_2"],
         "variable": "co2" ,
         "sensor_and_algorithm": "iasi_metop_a_nlis",
-        "year": ["2017", "2018", "2019","2020", "2021"],
-        "month": ["01","02","03","04","05","06","07","08","09","10","11","12"],
+        "year": ["2017"],
+        "month": ["01"],
         "day": ["01", "02", "03","04", "05", "06","07", "08", "09","10", "11", "12",
         "13", "14", "15","16", "17", "18","19", "20", "21","22", "23", "24","25", "26", "27",
         "28", "29", "30","31"],
