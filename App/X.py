@@ -64,7 +64,7 @@ def process_year(year):
     client = cdsapi.Client()
     
     request = {
-        "processing_level": "level_2",
+        "processing_level": ["level_2"],
         "variable": "co2" ,
         "sensor_and_algorithm": "iasi_metop_a_nlis",
         "year": ["2017", "2018", "2019","2020", "2021"],
