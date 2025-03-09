@@ -32,6 +32,7 @@ DATASET = "satellite-carbon-dioxide"
 SENSOR_CONFIG = {
     "iasi_metop_a_nlis": {
         "variable": "mid_tropospheric_columns_of_atmospheric_carbon_dioxide",
+        "years": ["2017"],
         "version": "10_1"
     }
 }
