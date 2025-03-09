@@ -33,7 +33,7 @@ SENSOR_CONFIG = {
     "iasi_metop_a_nlis": {
         "variable": "mid_tropospheric_columns_of_atmospheric_carbon_dioxide",
         "years": ["2017", "2018", "2019", "2020", "2021"],
-        "version": "10.1"
+        "version": "10_1"
     }
 }
 
@@ -69,6 +69,9 @@ def process_year(year):
         "sensor_and_algorithm": "iasi_metop_a_nlis",
         "year": year,
         "month": ["01","02","03","04","05","06","07","08","09","10","11","12"],
+        "day": ["01", "02", "03","04", "05", "06","07", "08", "09","10", "11", "12",
+        "13", "14", "15","16", "17", "18","19", "20", "21","22", "23", "24","25", "26", "27",
+        "28", "29", "30","31"],
         "version": SENSOR_CONFIG["iasi_metop_a_nlis"]["version"],
         "format": "zip"
     }
