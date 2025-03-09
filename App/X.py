@@ -33,7 +33,7 @@ request_template = {
         "processing_level": "level_2",
         "variable": "mid_tropospheric_columns_of_atmospheric_carbon_dioxide",
         "sensor_and_algorithm": "iasi_metop_a_nlis",
-        "year": ["2017", "2018", "2019", "2020", "2021"],
+        "year": ["2017"],
         "month": ["01"],
         "day": ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10",
                 "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
