@@ -39,7 +39,7 @@ if not all(AWS_CONFIG.values()):
 s3_client = boto3.client('s3', **AWS_CONFIG)
 
 # Definir DATASET (ajustar según el dataset deseado)
-DATASET = os.getenv("CDS_DATASET", "default_dataset")
+DATASET = os.getenv("CDS_DATASET", "satellite-carbon-dioxide")
 
 # Configuración centralizada de sensores
 SENSORS_CONFIG = {
