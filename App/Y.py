@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import cdsapi
 import certifi
 import ssl
+import boto3
 
 # Configuración del logger
 logging.basicConfig(
