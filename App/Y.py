@@ -1,7 +1,10 @@
-import boto3
 import os
 import tempfile
 import logging
+import zipfile
+import xarray as xr
+import pandas as pd
+from datetime import datetime
 from tenacity import retry, stop_after_attempt, wait_exponential
 from dotenv import load_dotenv
 import cdsapi
@@ -127,30 +130,30 @@ def download_data(client, request):
     result = client.retrieve(request["dataset"], request)
     return result
 
-def upload_to_s3(file_path, s3_key):
+def nc_to_excel(nc_file_path, output_excel_path):
     """
-    Sube el archivo ubicado en file_path a S3 utilizando s3_key como ruta.
+    Abre el archivo .nc y lo convierte a un archivo Excel.
     """
     try:
-        s3_client.upload_file(file_path, BUCKET_NAME, s3_key)
-        logger.info(f"Archivo subido exitosamente a s3://{BUCKET_NAME}/{s3_key}")
+        ds = xr.open_dataset(nc_file_path)
+        # Convertir a DataFrame; se resetean los índices para aplanar las dimensiones
+        df = ds.to_dataframe().reset_index()
+        df.to_excel(output_excel_path, index=False)
+        logger.info(f"Archivo Excel generado: {output_excel_path}")
     except Exception as e:
-        logger.error(f"Error al subir archivo a S3: {e}")
-        raise
+        logger.error(f"Error al convertir {nc_file_path} a Excel: {e}")
 
 def get_date_range(config, year):
     """
     Retorna el rango de fechas (start_date, end_date) para un año dado,
     basándose en la configuración de meses y días.
     """
-    # Determinar meses
     if config["months"] == "all":
         start_month, end_month = "01", "12"
     else:
         start_month = config["months"][0]
         end_month = config["months"][-1]
     
-    # Determinar días
     if config["days"] in [None, "all"]:
         start_day, end_day = "01", "31"
     else:
@@ -163,7 +166,7 @@ def get_date_range(config, year):
 
 def process_nc_files(zip_file_path, sensor_name, year, config):
     """
-    Extrae archivos .nc desde el archivo ZIP y los guarda en la carpeta
+    Extrae archivos .nc desde el ZIP, los convierte a Excel y los guarda en la carpeta
     'processed_data' con nombres que incluyen el sensor y el rango de fechas.
     """
     start_date, end_date = get_date_range(config, year)
@@ -171,27 +174,37 @@ def process_nc_files(zip_file_path, sensor_name, year, config):
     os.makedirs(processed_dir, exist_ok=True)
     
     with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-        # Buscar archivos que terminen en .nc
+        # Filtrar archivos que terminen en .nc
         nc_files = [f for f in zip_ref.namelist() if f.endswith('.nc')]
         if not nc_files:
             logger.warning(f"No se encontraron archivos .nc en el ZIP para {sensor_name} {year}")
             return
         
         for idx, nc_filename in enumerate(nc_files, start=1):
-            if len(nc_files) == 1:
-                new_filename = f"{sensor_name}_{start_date}_{end_date}.nc"
-            else:
-                new_filename = f"{sensor_name}_{start_date}_{end_date}_part{idx}.nc"
+            # Crear archivo temporal para el contenido .nc
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".nc") as tmp_nc_file:
+                tmp_nc_path = tmp_nc_file.name
+                with zip_ref.open(nc_filename) as source:
+                    tmp_nc_file.write(source.read())
             
-            extracted_path = os.path.join(processed_dir, new_filename)
-            with zip_ref.open(nc_filename) as source, open(extracted_path, 'wb') as target:
-                target.write(source.read())
-            logger.info(f"Archivo procesado: {extracted_path}")
+            # Determinar el nombre del archivo Excel
+            if len(nc_files) == 1:
+                excel_filename = f"{sensor_name}_{start_date}_{end_date}.xlsx"
+            else:
+                excel_filename = f"{sensor_name}_{start_date}_{end_date}_part{idx}.xlsx"
+            excel_output_path = os.path.join(processed_dir, excel_filename)
+            
+            # Convertir el archivo .nc a Excel
+            nc_to_excel(tmp_nc_path, excel_output_path)
+            
+            # Eliminar el archivo temporal .nc
+            os.remove(tmp_nc_path)
+            logger.info(f"Archivo temporal {tmp_nc_path} eliminado.")
 
 def process_sensor(sensor_name, config):
     """
     Procesa un sensor específico utilizando su configuración.
-    Itera por cada año, descarga los datos, los sube a S3 y procesa los archivos .nc.
+    Para cada año, descarga los datos, extrae los archivos .nc del ZIP y los convierte a Excel.
     """
     client = cdsapi.Client()  # Instancia del cliente de CDS
     
@@ -209,38 +222,33 @@ def process_sensor(sensor_name, config):
             "format": "zip"
         }
         
-        # Crear archivo temporal para almacenar la descarga
+        # Crear archivo temporal para almacenar la descarga ZIP (no se guarda de forma permanente)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_file:
-            tmp_file_path = tmp_file.name
+            tmp_zip_path = tmp_file.name
         
         try:
             logger.info(f"🛰️ Procesando {sensor_name} - {year}")
             result = download_data(client, request)
-            result.download(tmp_file_path)
+            result.download(tmp_zip_path)
             
-            # Subir el archivo ZIP a S3
-            s3_key = f"climate-data/{sensor_name}/{year}/data.zip"
-            upload_to_s3(tmp_file_path, s3_key)
-            
-            # Procesar el ZIP para extraer los archivos .nc y renombrarlos
-            process_nc_files(tmp_file_path, sensor_name, year, config)
+            # Procesar el ZIP para extraer y convertir los archivos .nc a Excel
+            process_nc_files(tmp_zip_path, sensor_name, year, config)
             
         except Exception as e:
             logger.error(f"⛔ Error crítico en {sensor_name} {year}: {e}")
         finally:
-            if os.path.exists(tmp_file_path):
-                os.remove(tmp_file_path)
-                logger.info(f"Archivo temporal {tmp_file_path} eliminado.")
+            if os.path.exists(tmp_zip_path):
+                os.remove(tmp_zip_path)
+                logger.info(f"Archivo temporal {tmp_zip_path} eliminado.")
 
 def main():
-    logger.info("🚀 Iniciando pipeline unificado de CDS a S3 y procesamiento de archivos .nc")
+    logger.info("🚀 Iniciando pipeline de CDS a Excel")
     for sensor_name, config in SENSORS_CONFIG.items():
         logger.info(f"\n{'═'*50}\n🔧 Procesando sensor: {sensor_name}\n{'═'*50}")
         process_sensor(sensor_name, config)
     
     logger.info("✅ Todos los sensores procesados exitosamente!")
-    logger.info(f"Estructura final en S3: s3://{BUCKET_NAME}/climate-data/")
-    logger.info("Archivos NetCDF procesados se encuentran en la carpeta: processed_data")
+    logger.info("Archivos Excel generados se encuentran en la carpeta: processed_data")
 
 if __name__ == "__main__":
     main()
