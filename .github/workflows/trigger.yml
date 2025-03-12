@@ -18,7 +18,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install --upgrade pip
-        pip install setuptools openpyxl xarray cdsapi zipfile boto3 python-dotenv netCDF4 numpy h5netcdf tenacity
+        pip install setuptools openpyxl xarray cdsapi boto3 python-dotenv netCDF4 numpy h5netcdf tenacity
               
 
     - name: Copy .cdsapirc to home directory
