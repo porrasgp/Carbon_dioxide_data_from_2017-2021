@@ -43,12 +43,75 @@ DATASET = os.getenv("CDS_DATASET", "satellite-carbon-dioxide")
 
 # Configuración centralizada de sensores
 SENSORS_CONFIG = {
+    "IASI_Metop-A_NLIS": {
+        "variable": "co2",
+        "sensor": "iasi_metop_a_nlis",
+        "years": ["2017", "2018", "2019", "2020", "2021"],
+        "version": "10_1",
+        "level": "level_2",
+        "months": ["{:02d}".format(m) for m in range(1, 13)],  # "01" a "12"
+        "days": ["{:02d}".format(d) for d in range(1, 32)]        # "01" a "31"
+    },
+    "IASI_Metop-B_NLIS": {
+        "variable": "co2",
+        "sensor": "iasi_metop_b_nlis",
+        "years": ["2017", "2018", "2019", "2020", "2021"],
+        "version": "10_1",
+        "level": "level_2",
+        "months": ["{:02d}".format(m) for m in range(1, 13)],     # "01" a "12"
+        "days": ["{:02d}".format(d) for d in range(1, 32)]        # "01" a "31"
+    },
+    "IASI_Metop-C_NLIS": {
+        "variable": "co2",
+        "sensor": "iasi_metop_c_nlis",
+        "years": ["2019", "2020", "2021"],
+        "version": "10_1",
+        "level": "level_2",
+        "months": ["{:02d}".format(m) for m in range(1, 13)],  # "01" a "12"
+        "days": ["{:02d}".format(d) for d in range(1, 32)]        # "01" a "31"
+    },
+    "TANSO-FTS_OCFP": {
+        "variable": "xco2",
+        "sensor": "tanso_fts_ocfp",
+        "years": ["2017", "2018", "2019", "2020", "2021"],
+        "version": "7_3",
+        "level": "level_2",
+        "months": ["{:02d}".format(m) for m in range(1, 13)],  # "01" a "12"
+        "days": ["{:02d}".format(d) for d in range(1, 32)]        # "01" a "31"
+    },
+    "TANSO-FTS_SRFP": {
+        "variable": "xco2",
+        "sensor": "tanso_fts_srfp",
+        "years": ["2017", "2018", "2019", "2020", "2021"],
+        "version": "2_3_8",
+        "level": "level_2",
+        "months": ["{:02d}".format(m) for m in range(1, 13)],  # "01" a "12"
+        "days": ["{:02d}".format(d) for d in range(1, 32)]        # "01" a "31"
+    },
+    "TANSO2-FTS_SRFP": {
+        "variable": "xco2",
+        "sensor": "tanso2_fts_srfp",
+        "years": ["2019", "2020", "2021"],
+        "version": "2_1_0",
+        "level": "level_2",
+        "months": ["{:02d}".format(m) for m in range(1, 13)],  # "01" a "12"
+        "days": ["{:02d}".format(d) for d in range(1, 32)]        # "01" a "31"
+    },
     "MERGED_EMMA": {
         "variable": "xco2",
         "sensor": "merged_emma",
         "years": ["2017", "2018", "2019", "2020", "2021"],
         "version": "4_5",
         "level": "level_2",
+        "months": ["{:02d}".format(m) for m in range(1, 13)],  # "01" a "12"
+        "days": ["{:02d}".format(d) for d in range(1, 32)]        # "01" a "31"
+    },
+    "MERGED_OBS4MIPS": {
+        "variable": "xco2",
+        "sensor": "merged_obs4mips",
+        "years": [str(y) for y in range(2017, 2022)],  # Desde 2003 hasta 2021
+        "version": "4_5",
+        "level": "level_3",
         "months": ["{:02d}".format(m) for m in range(1, 13)],  # "01" a "12"
         "days": ["{:02d}".format(d) for d in range(1, 32)]        # "01" a "31"
     }
