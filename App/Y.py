@@ -43,30 +43,12 @@ DATASET = os.getenv("CDS_DATASET", "satellite-carbon-dioxide")
 
 # Configuración centralizada de sensores
 SENSORS_CONFIG = {
-    "TANSO2-FTS_SRFP": {
-        "variable": "xco2",
-        "sensor": "tanso2_fts_srfp",
-        "years": ["2019", "2020", "2021"],
-        "version": "2_1_0",
-        "level": "level_2",
-        "months": ["{:02d}".format(m) for m in range(1, 13)],  # "01" a "12"
-        "days": ["{:02d}".format(d) for d in range(1, 32)]        # "01" a "31"
-    },
     "MERGED_EMMA": {
         "variable": "xco2",
         "sensor": "merged_emma",
         "years": ["2017", "2018", "2019", "2020", "2021"],
         "version": "4_5",
-        "level": "level_3",
-        "months": ["{:02d}".format(m) for m in range(1, 13)],  # "01" a "12"
-        "days": ["{:02d}".format(d) for d in range(1, 32)]        # "01" a "31"
-    },
-    "MERGED_OBS4MIPS": {
-        "variable": "xco2",
-        "sensor": "merged_obs4mips",
-        "years": [str(y) for y in range(2003, 2022)],  # Desde 2003 hasta 2021
-        "version": "4_5",
-        "level": "level_3",
+        "level": "level_2",
         "months": ["{:02d}".format(m) for m in range(1, 13)],  # "01" a "12"
         "days": ["{:02d}".format(d) for d in range(1, 32)]        # "01" a "31"
     }
