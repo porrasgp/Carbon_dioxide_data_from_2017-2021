@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import cdsapi
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-# Configuración SSL para entornos problemáticos
+# Configuración SSL para entorno problemático
 os.environ["REQUESTS_CA_BUNDLE"] = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cacert.pem')
 
 # Configuración SSL global
