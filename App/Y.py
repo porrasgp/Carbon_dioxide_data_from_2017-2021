@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 ssl_context = ssl.create_default_context(cafile=certifi.where())
 
-# Cargar variables de entorno
+# Cargar de variables de entorno
 load_dotenv()
 
 # Configuración AWS
