@@ -1,0 +1,11 @@
+# Credenciales y entornos locales: NUNCA subir a GitHub
+.env
+*.env
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Descargas locales de datos
+*.zip
+*.nc
