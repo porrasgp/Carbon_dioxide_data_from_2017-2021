@@ -1,11 +1,13 @@
-boto3
-python-dotenv
-numpy
-numba
-scikit-learn
-cdsapi
-boto3
-dotenv 
-os
-matplotlib
+# Dependencias del proyecto.  Instalar con:   pip install -r App/requirements.txt
+
+# --- Necesarias para ejecutar XCO2.py / Y.py ---
+cdsapi            # cliente de Copernicus CDS: descarga los datos de CO2
+boto3             # cliente de AWS: sube los archivos a S3
+python-dotenv     # lee AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY desde el archivo .env
+tenacity          # reintentos automáticos si falla la red
+certifi           # certificados HTTPS (evita errores SSL)
+
+# --- Opcionales: solo para analizar los .zip/NetCDF ya descargados ---
 netCDF4
+numpy
+matplotlib
