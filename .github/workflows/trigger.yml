@@ -1,38 +1,73 @@
-name: Python application
+# =============================================================================
+# WORKFLOW DE GITHUB ACTIONS  -  automatiza el pipeline CDS -> S3
+# =============================================================================
+# ¿Qué es esto?
+#   GitHub Actions ejecuta tareas en un servidor temporal (un "runner") según
+#   las instrucciones de este archivo YAML. Los archivos dentro de
+#   .github/workflows/ se detectan automáticamente.
+#
+# ¿Cómo se conecta con el resto del repo?
+#   push a GitHub ─► este workflow ─► instala librerías ─► copia App/.cdsapirc
+#   ─► ejecuta App/Y.py ─► Y.py descarga de Copernicus y sube a AWS S3.
+#
+# En YAML la indentación (espacios, NO tabulaciones) define la estructura.
+# =============================================================================
 
+name: Python application        # nombre que aparece en la pestaña "Actions"
+
+# DISPARADOR: cuándo se ejecuta. [push] = en cada git push a cualquier rama.
+# Ojo: cada push lanza descargas pesadas. Otras opciones útiles:
+#   workflow_dispatch:   -> botón manual "Run workflow"
+#   schedule: - cron: '0 6 * * 1'  -> automático, p. ej. lunes 6:00 UTC
 on: [push]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build:                         # nombre del trabajo (un workflow puede tener varios)
+    runs-on: ubuntu-latest       # máquina virtual Linux que GitHub nos presta
 
-    steps:
+    steps:                       # pasos que se ejecutan EN ORDEN; si uno falla, se detiene
+    # PASO 1: descargar el código del repositorio al runner (empieza vacío).
     - name: Checkout code
       uses: actions/checkout@v3
 
+    # PASO 2: instalar Python. '3.X' significa "la última versión 3.x disponible".
+    # Para resultados reproducibles conviene fijar una, p. ej. '3.11'.
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.X'
 
+    # PASO 3: instalar las librerías que importan los scripts:
+    #   cdsapi (Copernicus) · boto3 (AWS) · python-dotenv (.env) · tenacity (reintentos)
+    #   El resto (xarray, netCDF4, numpy, h5netcdf, openpyxl) sirve para ANALIZAR
+    #   los datos después; Y.py no las necesita para descargar.
+    # (App/requirements.txt tiene una lista equivalente para uso local.)
     - name: Install dependencies
       run: |
         pip install --upgrade pip
         pip install setuptools openpyxl xarray cdsapi boto3 python-dotenv netCDF4 numpy h5netcdf tenacity
-              
 
+
+    # PASO 4: poner las credenciales de Copernicus donde `cdsapi` las busca (~/.cdsapirc).
+    # ⚠️ Mala práctica de seguridad: guardar la key en el repo público la expone.
+    #    Lo correcto es un Secret (ver README, sección "Seguridad"):
+    #      run: printf 'url: https://cds.climate.copernicus.eu/api\nkey: %s\n' "$CDSAPI_KEY" > ~/.cdsapirc
+    #      env: { CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }} }
     - name: Copy .cdsapirc to home directory
       run: cp App/.cdsapirc ~/.cdsapirc
 
+    # PASO 5: ejecutar el pipeline.
+    # (El nombre del paso dice "XCO2.py" pero el comando ejecuta Y.py: es Y.py
+    #  el que corre realmente. Cambia el comando si quieres usar XCO2.py.)
     - name: XCO2.py
-      working-directory: App
-      run: python Y.py 
+      working-directory: App      # equivale a hacer `cd App` antes de ejecutar
+      run: python Y.py
+      # `env` crea variables de entorno SOLO para este paso. `secrets.X` lee los
+      # valores guardados en GitHub > Settings > Secrets and variables > Actions.
+      # Y.py los recibe con os.getenv("AWS_ACCESS_KEY_ID"), etc.
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        # Este token no lo usan los scripts actuales; se puede quitar si no
+        # se necesita llamar a la API de GitHub.
         GITHUB_TOKEN: ${{ secrets.GITHUB }}
-
-
-
-
-

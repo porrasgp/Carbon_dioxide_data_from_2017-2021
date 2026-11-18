@@ -197,6 +197,11 @@ SENSORS_CONFIG = {
     "MERGED_OBS4MIPS": {
         # Nivel 3 = grilla mensual de 5°x5°. Aquí el rango es 2017-2021;
         # el producto existe desde 2003 (ver XCO2.py si quieres toda la serie).
+        # ⚠️ PARA REVISAR EN CLASE: XCO2.py elimina el campo "day" en nivel 3 y
+        # usa month="all"; process_sensor() aquí SÍ envía "day". Si CDS rechaza
+        # este pedido (error 400), esa diferencia es el primer sospechoso.
+        # Lo mismo aplica a "variable": XCO2.py usa los nombres largos del
+        # formulario de CDS y este archivo usa los cortos ("co2"/"xco2").
         "variable": "xco2",
         "sensor": "merged_obs4mips",
         "years": [str(y) for y in range(2017, 2022)],  # 2017 a 2021 (range excluye el 2022)
